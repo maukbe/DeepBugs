@@ -1,0 +1,7 @@
+{
+  "dependencies": {
+    "acorn": "^8.2.4",
+    "estraverse": "^5.2.0",
+    "walk-sync": "^2.2.0"
+  }
+}
