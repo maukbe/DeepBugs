@@ -6,6 +6,7 @@ Created on Nov 9, 2017
 
 import Util
 import random
+import requests
 
 from HyperParameters import type_embedding_size, node_type_embedding_size
 
@@ -66,7 +67,14 @@ class LearningData(object):
         # for all xy-pairs: y value = probability that incorrect
         x = left_vector + right_vector + operator_vector + \
             left_type_vector + right_type_vector + parent_vector + grand_parent_vector
-        xs.append(x)
+
+        sentence = left + ' ' + right + ' ' + operator + ' ' + \
+            left_type + ' ' + right_type + ' ' + parent + ' ' + grand_parent
+
+        url = 'http://localhost:5000/sentenceEmbedding'
+        myobj = {'sentence': sentence}
+        sentence_embedding = requests.post(url, json=myobj).json()
+        xs.append(sentence_embedding)
 
         if bug:
             y_correct = [1]
@@ -74,7 +82,7 @@ class LearningData(object):
             y_correct = [0]
         ys.append(y_correct)
 
-        code_pieces.append(CodePiece(left, right, operator, src))
+        # code_pieces.append(CodePiece(left, right, operator, src))
 
     def anomaly_score(self, y_prediction_orig, y_prediction_changed):
         return y_prediction_orig

@@ -1,13 +1,15 @@
 '''
-Created on Nov 9, 2017
-
-@author: Michael Pradel, Sabine Zach
+Changed model to use BERT sentence embeddings
 '''
 
 import Util
 from collections import Counter
 
 from HyperParameters import name_embedding_size, type_embedding_size
+
+import tensorflow as tf
+import requests
+import numpy as np
 
 
 class CodePiece(object):
@@ -21,6 +23,7 @@ class CodePiece(object):
 
 
 class LearningData(object):
+
     def is_known_type(self, t):
         return t == "boolean" or t == "number" or t == "object" or t == "regex" or t == "string"
 
@@ -76,38 +79,49 @@ class LearningData(object):
             if not (argument_string in name_to_vector):
                 return
         self.stats["calls_with_known_names"] += 1
-        callee_vector = name_to_vector[callee_string]
-        argument0_vector = name_to_vector[argument_strings[0]]
-        argument1_vector = name_to_vector[argument_strings[1]]
 
         # optional information: base object, argument types, etc.
         base_string = call["base"]
-        base_vector = name_to_vector.get(base_string, [0]*name_embedding_size)
+        # base_vector = name_to_vector.get(base_string, [0]*name_embedding_size)
         if base_string in name_to_vector:
             self.stats["calls_with_known_base_object"] += 1
 
         argument_type_strings = call["argumentTypes"]
-        argument0_type_vector = type_to_vector.get(
-            argument_type_strings[0], [0]*type_embedding_size)
-        argument1_type_vector = type_to_vector.get(
-            argument_type_strings[1], [0]*type_embedding_size)
+        # argument0_type_vector = type_to_vector.get(
+        #     argument_type_strings[0], [0]*type_embedding_size)
+        # argument1_type_vector = type_to_vector.get(
+        #     argument_type_strings[1], [0]*type_embedding_size)
         if (self.is_known_type(argument_type_strings[0]) or self.is_known_type(argument_type_strings[1])):
             self.stats["calls_with_known_types"] += 1
         if (self.is_known_type(argument_type_strings[0]) and self.is_known_type(argument_type_strings[1])):
             self.stats["calls_with_both_known_types"] += 1
 
         parameter_strings = call["parameters"]
-        parameter0_vector = name_to_vector.get(
-            parameter_strings[0], [0]*name_embedding_size)
-        parameter1_vector = name_to_vector.get(
-            parameter_strings[1], [0]*name_embedding_size)
+        # parameter0_vector = name_to_vector.get(
+        #     parameter_strings[0], [0]*name_embedding_size)
+        # parameter1_vector = name_to_vector.get(
+        #     parameter_strings[1], [0]*name_embedding_size)
         if (parameter_strings[0] in name_to_vector or parameter_strings[1] in name_to_vector):
             self.stats["calls_with_known_parameters"] += 1
 
+        sentence = callee_string + ' '
+        if argument_type_strings[0]:
+            sentence += argument_type_strings[0] + ' '
+        sentence += argument_strings[0] + ' '
+        if argument_type_strings[1]:
+            sentence += argument_type_strings[1] + ' '
+        sentence += argument_strings[1]
+        # Send this off to the docker service to get the embedding back
+        url = 'http://localhost:5000/sentenceEmbedding'
+        myobj = {'sentence': sentence}
+        sentence_embedding = requests.post(url, json=myobj).json()
+
         # for all xy-pairs: y value = probability that incorrect
-        x_keep = callee_vector + argument0_vector + argument1_vector
-        x_keep += base_vector + argument0_type_vector + argument1_type_vector
-        x_keep += parameter0_vector + parameter1_vector  # + file_name_vector
+        # x_keep = callee_vector + argument0_vector + argument1_vector
+        # x_keep += base_vector + argument0_type_vector + argument1_type_vector
+        # x_keep += parameter0_vector + parameter1_vector  # + file_name_vector
+
+        x_keep = sentence_embedding
         if bug:
             y_keep = [1]
         else:

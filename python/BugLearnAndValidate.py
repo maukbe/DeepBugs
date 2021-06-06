@@ -19,7 +19,9 @@ import time
 import numpy as np
 import Util
 import LearningDataSwappedArgs
+import LearningDataSwappedArgsBert
 import LearningDataBinOperator
+import LearningDataBertBinOperator
 import LearningDataSwappedBinOperands
 import LearningDataIncorrectBinaryOperand
 import LearningDataIncorrectAssignment
@@ -27,7 +29,7 @@ import LearningDataIncorrectAssignment
 
 parser = argparse.ArgumentParser()
 parser.add_argument(
-    "--pattern", help="Kind of data to extract", choices=["SwappedArgs", "BinOperator", "SwappedBinOperands", "IncorrectBinaryOperand", "IncorrectAssignment"], required=True)
+    "--pattern", help="Kind of data to extract", choices=["SwappedArgs", "SwappedArgsBert", "BinOperator", "BinOperatorBert", "SwappedBinOperands", "IncorrectBinaryOperand", "IncorrectAssignment"], required=True)
 parser.add_argument(
     "--token_emb", help="JSON file with token embeddings", required=True)
 parser.add_argument(
@@ -100,8 +102,12 @@ if __name__ == '__main__':
 
     if pattern == "SwappedArgs":
         learning_data = LearningDataSwappedArgs.LearningData()
+    elif pattern == "SwappedArgsBert":
+        learning_data = LearningDataSwappedArgsBert.LearningData()
     elif pattern == "BinOperator":
         learning_data = LearningDataBinOperator.LearningData()
+    elif pattern == "BinOperatorBert":
+        learning_data = LearningDataBertBinOperator.LearningData()
     elif pattern == "SwappedBinOperands":
         learning_data = LearningDataSwappedBinOperands.LearningData()
     elif pattern == "IncorrectBinaryOperand":
@@ -112,7 +118,7 @@ if __name__ == '__main__':
         raise Exception(f"Unexpected bug pattern: {pattern}")
     # not yet implemented
     # elif pattern == "MissingArg":
-    ##    learning_data = LearningDataMissingArg.LearningData()
+    # learning_data = LearningDataMissingArg.LearningData()
 
     print("Statistics on training data:")
     learning_data.pre_scan(training_data_paths, validation_data_paths)
@@ -132,7 +138,7 @@ if __name__ == '__main__':
     model.add(Dense(200, input_dim=x_length,
                     activation="relu", kernel_initializer='normal'))
     model.add(Dropout(0.2))
-    #model.add(Dense(200, activation="relu"))
+    # model.add(Dense(200, activation="relu"))
     model.add(Dense(1, activation="sigmoid", kernel_initializer='normal'))
 
     # train model
@@ -163,14 +169,19 @@ if __name__ == '__main__':
 
     # compute precision and recall with different thresholds
     #  for reporting anomalies
-    # assumption: correct and incorrect arguments are alternating
-    #  in list of x-y pairs
     threshold_to_correct = Counter()
     threshold_to_incorrect = Counter()
     threshold_to_found_seeded_bugs = Counter()
     threshold_to_warnings_in_orig_code = Counter()
     ys_prediction = model.predict(xs_validation)
     poss_anomalies = []
+
+    scores_dict = {'scores': list(
+        map(lambda x: float(x[0]), ys_prediction)), 'bug': list(map(lambda x: int(x[0]), ys_validation))}
+
+    with open('scores.json', 'w') as file:
+        file.write(json.dumps(scores_dict))
+
     for idx in range(0, len(xs_validation), 2):
         # probab(original code should be changed), expect 0
         y_prediction_orig = ys_prediction[idx][0]
